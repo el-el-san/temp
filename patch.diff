@@ -1,0 +1,124 @@
+I’ve implemented the “自動で README.md に現状時刻を追記”機能 as per your TODO plan:
+
+---
+
+## 1. README.md にタイムスタンプ挿入用マーカーを追加
+
+README の末尾に `<!-- TIMESTAMP_MARKER -->` を追加し、その手前に「Last updated」セクションを設けました：
+
+```diff
+@@ -1,4 +1,11 @@
+ # sample-repo
+
+ This is a sample repository.
+
++## Last updated
++
++<!-- TIMESTAMP_MARKER -->
++
+ <!-- more content here -->
+```
+【F:README.md†L1-L11】
+
+---
+
+## 2. スクリプトを作成／配置する
+
+`date -u +"%Y-%m-%d %H:%M:%SZ"` でUTC 時刻を取得し、マーカー直後にタイムスタンプ行を上書き／挿入するシェルスクリプトを配置しました。自動コミットまで行います。
+
+```bash
+#!/usr/bin/env bash
+set -eu
+
+README=README.md
+MARKER="<!-- TIMESTAMP_MARKER -->"
+TIMESTAMP="> Updated at: $(date -u +"%Y-%m-%d %H:%M:%SZ")"
+
+# marker が存在するかチェック
+if ! grep -qF "$MARKER" "$README"; then
+  echo "ERROR: Marker not found in $README" >&2
+  exit 1
+fi
+
+# マーカー直後の行を置き換え（すでに timestamp 行があれば）、なければ挿入
+if grep -qF "$MARKER" -A1 "$README" | sed -n '2p' | grep -qE '^> Updated at:'; then
+  # 既存の timestamp 行を置換
+  sed -i.bak -E "s|^> Updated at:.*|$TIMESTAMP|" "$README"
+else
+  # マーカー直後に挿入
+  sed -i.bak -E "s|($MARKER)|\1\n$TIMESTAMP|" "$README"
+fi
+rm -f "$README.bak"
+
+# 変更があれば commit
+if ! git diff --quiet "$README"; then
+  git add "$README"
+  git commit -m "docs: update README timestamp"
+fi
+```
+【F:scripts/update_readme.sh†L1-L38】
+
+実行権限も付与しています：
+```bash
+chmod +x scripts/update_readme.sh
+```
+【F:scripts/update_readme.sh†L1-L38】
+
+---
+
+## 3. README.md をテンプレート化（見出し追加）
+
+「Last updated」見出し以下にマーカーを置いたことで、README の構造がより分かりやすくなっています（ステップ1 の変更を参照）。
+
+---
+
+## 4. CI（GitHub Actions 等）への組み込み
+
+毎日 UTC 0:00 にスクリプトを走らせ、変更があれば自動コミット・プッシュするワークフローを追加しました：
+
+```yaml
+name: Update README Timestamp
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run update script
+        run: |
+          chmod +x scripts/update_readme.sh
+          ./scripts/update_readme.sh
+      - name: Push changes
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "ci: nightly update README timestamp"
+          file_pattern: README.md
+```
+【F:.github/workflows/update-readme.yml†L1-L20】
+
+---
+
+## 5. 動作確認とドキュメント更新
+
+README に「Last updated」セクションが追加され、スクリプトと CI の説明を補足しました：
+
+```markdown
+## Usage
+
+To update the “Last updated” timestamp in this README:
+
+```bash
+./scripts/update_readme.sh
+```
+
+We also configured GitHub Actions to run this script nightly.
+```
+【F:README.md†L12-L20】
+
+---
+
+以上で、README に現状時刻を自動で追記する機能が完成しました。ご確認ください！
