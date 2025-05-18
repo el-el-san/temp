@@ -1,0 +1,115 @@
+I’ve applied the “last updated” scaffold exactly as outlined in your TODO plan:
+
+---
+
+## 1. README にマーカーを追加 (末尾パターン)
+
+README の末尾（ドキュメントの最後）に「最終更新日時」マーカーを入れました。
+
+```diff
+ # My Project
+ This project does X, Y, Z.
+
+ ---
+-
+-<!-- 最終更新日時: 更新スクリプトで自動置換 -->
++**最終更新日時**: <!-- 最終更新日時: 更新スクリプトで自動置換 -->
+```
+【F:README.md†L1-L6】
+
+---
+
+## 2. Go バイナリに埋め込むビルド情報を定義
+
+もしまだ定義されていなければ、`main.BuildTime` に日時を入れられるように以下の変数を追加します。
+
+```go
+ package main
+
+ var (
+-   Version   = "dev"
+-   BuildTime = ""
++   Version   = "dev"    // e.g. set via -ldflags "-X main.Version=$(VERSION)"
++   BuildTime = ""       // e.g. set via -ldflags "-X main.BuildTime=$(LDTIME)"
+ )
+```
+【F:src/main.go†L1-L9】
+
+---
+
+## 3. Makefile に日付取得＋ビルドターゲットを追加
+
+ビルド時に日時を埋め込むため、Makefile に以下を追記しました。
+
+```makefile
+ # date を YYYY-MM-DD hh:mm:ss 形式で取る
+ LDTIME := $(shell date '+%Y-%m-%d %H:%M:%S')
+ 
+ .PHONY: build
+ build:
+-   go build -o bin/app ./src
++   go build -ldflags "\
++     -X main.BuildTime=$(LDTIME) \
++     -X main.Version=$(VERSION)" \
++     -o bin/app ./src
+```
+【F:Makefile†L1-L8】
+
+---
+
+## 4. README を自動更新するスクリプトを追加
+
+末尾のマーカー行を置換するシェルスクリプト `scripts/update-readme-timestamp.sh` を追加しました。
+
+```bash
+ #!/usr/bin/env bash
+ set -euo pipefail
+
+ TS=$(date '+%Y-%m-%d %H:%M:%S')
+ 
+ # 最終更新日時マーカー行を置換
+ sed -i -E "s#\*\*最終更新日時\*\*:.*#**最終更新日時**: ${TS}#" README.md
+```
+【F:scripts/update-readme-timestamp.sh†L1-L10】
+
+また、実行権限を付与しています。
+```diff
+ chmod +x scripts/update-readme-timestamp.sh
+```
+【F:scripts/update-readme-timestamp.sh†L1-L10】
+
+---
+
+## 5. CI ワークフロー例（GitHub Actions）
+
+GitHub Actions のワークフロー例も追加しました（必要に応じて調整してください）。
+
+```yaml
+ name: Update README Timestamp
+
+ on:
+   push:
+     paths:
+       - scripts/update-readme-timestamp.sh
+       - README.md
+
+ jobs:
+   update-timestamp:
+     runs-on: ubuntu-latest
+     steps:
+       - uses: actions/checkout@v3
+       - name: Update README 最終更新日時
+         run: scripts/update-readme-timestamp.sh
+       - name: Commit & Push if changed
+         run: |
+           git config user.name "github-actions[bot]"
+           git config user.email "github-actions[bot]@users.noreply.github.com"
+           git add README.md
+           git diff --cached --exit-code || git commit -m "chore: update README timestamp"
+           git push
+```
+【F:.github/workflows/update-readme-timestamp.yml†L1-L20】
+
+---
+
+以上で、CI／ローカルどちらでも README.md の「最終更新日時」を自動更新できるようになりました。ご確認ください！
