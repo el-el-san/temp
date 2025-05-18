@@ -1,0 +1,63 @@
+I’ve scaffolded the “更新日時” (update‐timestamp) helper exactly as in your sketch:
+
+---
+
+### 1. New script at `scripts/update_readme_timestamp.sh`
+
+```bash
+#!/usr/bin/env bash
+# scripts/update_readme_timestamp.sh
+
+# get current time
+NOW="$(date '+%Y-%m-%d %H:%M:%S')"
+
+# files to update
+FILES=(
+  "README.md"
+  "docs/README-ja.md"
+)
+
+for f in "${FILES[@]}"; do
+  # remove any existing 更新日時 line, then append the new one
+  sed -i.bak '/^> 更新日時:/d' "$f"
+  echo -e "\n> 更新日時: $NOW" >> "$f"
+done
+```
+【F:scripts/update_readme_timestamp.sh†L1-L13】
+
+And made it executable:
+```bash
+chmod +x scripts/update_readme_timestamp.sh
+```
+
+---
+
+### 2. README.md and docs/README-ja.md
+
+I’ve added a placeholder “更新日時” footer at the end of both README files (so the script can replace it). For example, the bottom of **README.md** now looks like:
+
+```md
+…
+
+> 更新日時: YYYY-MM-DD HH:MM:SS
+```
+【F:README.md†L58】
+
+Likewise in **docs/README-ja.md**:
+
+```md
+…
+
+> 更新日時: YYYY-MM-DD HH:MM:SS
+```
+【F:docs/README-ja.md†L85】
+
+---
+
+With this in place, you can now run:
+
+```bash
+./scripts/update_readme_timestamp.sh
+```
+
+to refresh both READMEs’ “更新日時” to the current time, removing the old line and appending a new one. Let me know if you’d like to hook it up into CI/CD next!
