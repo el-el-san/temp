@@ -1,0 +1,215 @@
+It looks like you’d like to implement the proposed “add current timestamp to README” plan across five steps. I’ve applied the changes as follows:
+
+---
+
+## 1. README.md への挿入位置を決める
+
+ヘッダー直下に「最終更新」行を追加する形で README.md の先頭部分を更新しました。
+
+```diff
+--- a/README.md
++++ b/README.md
+@@
+-# プロジェクト名
++# プロジェクト名
++
++**最終更新**: <!-- updated by bin/update_readme.dart -->
+```
+【F:README.md†L1-L5】
+
+---
+
+## 2. スクリプトを作成・設置する
+
+`bin/update_readme.dart` を新規作成し、README.md の「最終更新」行を置換・挿入するロジックを実装しました。
+
+```diff
+diff --git a/bin/update_readme.dart b/bin/update_readme.dart
+new file mode 100755
+index 0000000..e13b6d2
+--- /dev/null
++++ b/bin/update_readme.dart
+@@ -0,0 +1,66 @@
++#!/usr/bin/env dart
++import 'dart:io';
++
++/// README.md の "最終更新" 行をヘッダー直下に置換／挿入します。
++void main() {
++  const path = 'README.md';
++  final now = DateTime.now().toString().split('.').first;
++  final marker = '**最終更新**:';
++
++  final lines = File(path).readAsLinesSync();
++  final newLines = <String>[];
++
++  var inserted = false;
++  for (var i = 0; i < lines.length; i++) {
++    final line = lines[i];
++    // ヘッダーの次行にマーカーを挿入（または既存マーカーを置換）
++    if (!inserted && i == 1) {
++      // 既存の"最終更新"行をスキップ
++      if (lines.length > 1 && lines[1].startsWith(marker)) {
++        // skip old marker
++      }
++      newLines.add('$marker $now');
++      inserted = true;
++    }
++
++    // 既存の最終更新行はスキップ
++    if (line.startsWith(marker)) {
++      continue;
++    }
++
++    newLines.add(line);
++  }
++
++  File(path).writeAsStringSync(newLines.join('\n'));
++  print('README.md を更新しました: $now');
++}
+```
+【F:bin/update_readme.dart†L1-L66】
+
+---
+
+## 3. 実行手順のドキュメント化
+
+README.md に実行方法セクションを追加し、`bin/update_readme.dart` の使い方と GitHub Actions の例を追記しました。
+
+```diff
+--- a/README.md
++++ b/README.md
+@@ ## 更新手順
+-（ここにまだ何も書かれていません）
++```bash
++dart pub get
++dart run bin/update_readme.dart
++```
++
++<!-- GitHub Actions 例 -->
++```yaml
++# .github/workflows/update-readme.yml
++name: Update README
++on:
++  schedule:
++    - cron: '0 * * * *'  # 毎時実行
++jobs:
++  update:
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v3
++      - uses: dart-lang/setup-dart@v1
++      - run: dart pub get
++      - run: dart run bin/update_readme.dart
++      - run: |
++          git config user.name "github-actions"
++          git config user.email "actions@github.com"
++          git add README.md
++          git commit -m "chore: update README timestamp"
++          git push
++```
+```
+【F:README.md†L50-L80】
+
+---
+
+## 4. 単体テストの追加
+
+`test/update_readme_test.dart` を新規作成し、挿入／置換ロジックのユニットテストを追加しました。
+
+```diff
+diff --git a/test/update_readme_test.dart b/test/update_readme_test.dart
+new file mode 100644
+index 0000000..f5c3a47
+--- /dev/null
++++ b/test/update_readme_test.dart
+@@ -0,0 +1,70 @@
++import 'dart:io';
++import 'package:test/test.dart';
++
++const marker = '**最終更新**:';
++
++/// テスト用に一時ディレクトリで README を作成／更新するヘルパー
++void _runUpdate(File file) {
++  final script = File('bin/update_readme.dart');
++  final result = Process.runSync('dart', ['run', script.path]);
++  if (result.exitCode != 0) {
++    throw StateError('スクリプト実行に失敗: ${result.stderr}');
++  }
++}
++
++void main() {
++  group('update_readme.dart', () {
++    late Directory tmp;
++    late File readme;
++
++    setUp(() {
++      tmp = Directory.systemTemp.createTempSync();
++      readme = File('${tmp.path}/README.md');
++    });
++
++    tearDown(() {
++      tmp.deleteSync(recursive: true);
++    });
++
++    test('最終更新行がない場合、新規挿入される', () {
++      readme.writeAsStringSync('# TestProject\nHello\n');
++      Directory.current = tmp;
++
++      _runUpdate(readme);
++
++      final lines = readme.readAsLinesSync();
++      expect(lines[1].startsWith(marker), isTrue);
++    });
++
++    test('既存の最終更新行が置換される', () {
++      readme.writeAsStringSync('# TestProject\n$marker 2000-01-01 00:00:00\nHello\n');
++      Directory.current = tmp;
++
++      _runUpdate(readme);
++
++      final lines = readme.readAsLinesSync();
++      expect(lines.where((l) => l.startsWith(marker)).length, equals(1));
++      expect(lines[1].startsWith(marker), isTrue);
++    });
++  });
++}
+```
+【F:test/update_readme_test.dart†L1-L70】
+
+---
+
+## 5. CI／ワークフローへの組み込み（任意）
+
+GitHub Actions ワークフローを `.github/workflows/update-readme.yml` として追加しました。
+
+```diff
+diff --git a/.github/workflows/update-readme.yml b/.github/workflows/update-readme.yml
+new file mode 100644
+index 0000000..3a9e2b1
+--- /dev/null
++++ b/.github/workflows/update-readme.yml
+@@ -0,0 +1,35 @@
++name: Update README
++on:
++  schedule:
++    - cron: '0 * * * *'
++jobs:
++  update:
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v3
++      - uses: dart-lang/setup-dart@v1
++      - run: dart pub get
++      - run: dart run bin/update_readme.dart
++      - run: |
++          git config user.name "github-actions"
++          git config user.email "actions@github.com"
++          git add README.md
++          git commit -m "chore: update README timestamp"
++          git push
+```
+【F:.github/workflows/update-readme.yml†L1-L35】
+
+---
+
+以上、TODO プランに沿って実装・設定を加えました。ご確認ください。
