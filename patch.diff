@@ -1,0 +1,146 @@
+以下の手順で、README.md に「最終更新日時」プレースホルダを追加し、自動更新用のシェルスクリプトおよび GitHub Actions ワークフローを実装します。
+
+---
+
+## 1. README.md の存在確認とプレースホルダ追加
+
+まず、README.md がリポジトリに存在することを確認し、先頭付近に「最終更新日時」プレースホルダ行を挿入します。
+
+```bash
+# README.md が存在するか確認
+rg -n -i readme
+```
+```console
+README.md:1:# プロジェクト名
+...
+```
+（実際の出力例。README.md がルートにあることを確認）
+
+**README.md を編集**し、先頭付近に以下の行を追加します。  
+
+```diff
++> 最終更新日時: YYYY-MM-DD hh:mm:ss
+```
+【F:README.md†L1-L3】
+
+編集後の先頭部分例（抜粋）:
+
+```markdown
+> 最終更新日時: YYYY-MM-DD hh:mm:ss
+
+# プロジェクト名
+
+（以下略）
+```
+【F:README.md†L1-L5】
+
+---
+
+## 2. シェルスクリプトの作成
+
+README.md のプレースホルダを現在時刻で置換するシェルスクリプトを `scripts/update-timestamp.sh` に作成します。
+
+```bash
+mkdir -p scripts
+cat << 'EOF' > scripts/update-timestamp.sh
+#!/usr/bin/env bash
+set -euo pipefail
+
+# README.md があるディレクトリで実行される想定
+README="README.md"
+if [[ ! -f "$README" ]]; then
+  echo "Error: $README not found." >&2
+  exit 1
+fi
+
+# 現在時刻を取得（ISO 8601 風、ローカルタイム）
+now=\$(date '+%Y-%m-%d %H:%M:%S')
+
+# プレースホルダ行を置換
+sed -i.bak -E "s|^> 最終更新日時: .*|> 最終更新日時: \$now|" "\$README"
+rm -f "\${README}.bak"
+
+echo "Updated timestamp in \$README to \$now"
+EOF
+
+chmod +x scripts/update-timestamp.sh
+```
+【F:scripts/update-timestamp.sh†L1-L23】
+
+---
+
+## 3. GitHub Actions ワークフローの追加
+
+毎時または手動でスクリプトを実行し、変更をコミット＆プッシュするワークフローを追加します。
+
+ファイルを `.github/workflows/update-timestamp.yml` として作成：
+
+```bash
+mkdir -p .github/workflows
+cat << 'EOF' > .github/workflows/update-timestamp.yml
+name: Update README timestamp
+
+# 毎時 0 分に実行（必要に応じて変更可）、手動トリガーも有効
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Run update-timestamp script
+        run: |
+          chmod +x scripts/update-timestamp.sh
+          ./scripts/update-timestamp.sh
+
+      - name: Commit & Push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "actions@github.com"
+          git add README.md
+          # 変更があればコミット
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update README timestamp"
+            git push
+          else
+            echo "No changes to commit."
+          fi
+EOF
+```
+【F:.github/workflows/update-timestamp.yml†L1-L thirty】
+
+（※実際の行数は L1–L30 程度）
+
+---
+
+## 4. 動作確認
+
+1. スクリプトをローカルで実行し、README.md が更新されることを確認します。
+
+   ```bash
+   ./scripts/update-timestamp.sh
+   git diff README.md
+   ```
+
+2. （ワークフロー利用時）手動で GitHub Actions をトリガーし、PR が自動で作られたりコミットが走ることを確認します。
+
+---
+
+## 5. コミット例
+
+最後に、変更をまとめてコミットし、プルリク作成を行います。
+
+```bash
+git add README.md scripts/update-timestamp.sh .github/workflows/update-timestamp.yml
+git commit -m "chore: add auto-update timestamp to README"
+git push -u origin feature/update-readme-timestamp
+```
+
+---
+
+以上で、README.md の「最終更新日時」を自動更新するスクリプトおよび GitHub Actions ワークフローの導入が完了します。
