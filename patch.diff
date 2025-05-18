@@ -1,0 +1,203 @@
+Below is one possible implementation of the “README に現状時刻を追記する”タスクの TODO プランに従った変更です。
+
+---
+
+## 1. 変更内容サマリ
+
+| ステップ | 追加／更新ファイル                              | 内容の概要                                                                                                                               |
+|:--------:|:---------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------|
+| **2.3**  | `scripts/append-timestamp.sh`                 | README の末尾に「更新日時」を追記する自動化スクリプトを追加                                                                                  |
+| **2.6**  | `CONTRIBUTING.md`                             | 上記スクリプトの使い方をドキュメント化                                                                                                     |
+| **2.7**  | `README.md`                                   | サンプル実行結果イメージを追記                                                                                                            |
+
+---
+
+## 2. 実際の diff
+
+```diff
+diff --git a/scripts/append-timestamp.sh b/scripts/append-timestamp.sh
+new file mode 100755
+index 0000000..1111111
+--- /dev/null
++++ b/scripts/append-timestamp.sh
+@@ -0,0 +1,17 @@
++#!/usr/bin/env bash
++# scripts/append-timestamp.sh
++
++set -euo pipefail
++TARGET=README.md
++TS="$(date '+%Y-%m-%d %H:%M:%S')"
++
++# 既存の更新日時行を削除（あれば）
++sed -i '/^\*\*更新日時\*\*:/d' "$TARGET"
++
++# 末尾に追記
++{
++  echo
++  echo '---'
++  echo "**更新日時**: ${TS}"
++} >> "$TARGET"
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+new file mode 100644
+index 0000000..2222222
+--- /dev/null
++++ b/CONTRIBUTING.md
+@@ -0,0 +1,32 @@
++# Contributing Guide
++
++本リポジトリへのコントリビューション方法をまとめています。
++
++## README 更新日時の自動追記スクリプト
++
++README.md の末尾に現状時刻（更新日時）を追記するためのスクリプトを用意しています。
++
++### スクリプトの実行方法
++
++```bash
++# リポジトリルートで実行
++./scripts/append-timestamp.sh
++```
++
++### CI への組み込み（例）
++
++GitHub Actions 等の CI ワークフローの中で、プルリクエスト作成前に自動で実行しておくと便利です。
++
++```yaml
++# .github/workflows/update-timestamp.yml
++name: Update README timestamp
++
++on:
++  workflow_dispatch:
++
++jobs:
++  update-timestamp:
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v2
++      - name: Append README timestamp
++        run: ./scripts/append-timestamp.sh
++      - uses: EndBug/add-and-commit@v7
++        with:
++          author_name: github-actions
++          author_email: actions@github.com
++          message: Update README timestamp
++```
+diff --git a/README.md b/README.md
+index abcdef1..bcdef12 100644
+--- a/README.md
++++ b/README.md
+@@ -1,4 +1,12 @@
+ # Sample Project
+ 
+ This is a sample project.
++
++---
++
++<!-- scripts/append-timestamp.sh 実行例 -->
++```bash
++$ scripts/append-timestamp.sh
++``` 
++<!-- 上記実行後の末尾例は CONTRIBUTING.md をご参照ください -->
+```
+
+```
+```
+
+```
+```
+```
+```
+```
+```
+```
+```
+```
+```
+
+---
+
+## 3. 各ファイル内容（抜粋）
+
+### a) `scripts/append-timestamp.sh`
+```bash
+#!/usr/bin/env bash
+# scripts/append-timestamp.sh
+
+set -euo pipefail
+TARGET=README.md
+TS="$(date '+%Y-%m-%d %H:%M:%S')"
+
+# 既存の更新日時行を削除（あれば）
+sed -i '/^\*\*更新日時\*\*:/d' "$TARGET"
+
+# 末尾に追記
+{
+  echo
+  echo '---'
+  echo "**更新日時**: ${TS}"
+} >> "$TARGET"
+```
+【F:scripts/append-timestamp.sh†L1-L17】
+
+### b) `CONTRIBUTING.md`
+```markdown
+# Contributing Guide
+
+本リポジトリへのコントリビューション方法をまとめています。
+
+## README 更新日時の自動追記スクリプト
+
+README.md の末尾に現状時刻（更新日時）を追記するためのスクリプトを用意しています。
+
+### スクリプトの実行方法
+
+```bash
+# リポジトリルートで実行
+./scripts/append-timestamp.sh
+```
+
+### CI への組み込み（例）
+
+GitHub Actions 等の CI ワークフローの中で、プルリクエスト作成前に自動で実行しておくと便利です。
+
+```yaml
+# .github/workflows/update-timestamp.yml
+name: Update README timestamp
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-timestamp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Append README timestamp
+        run: ./scripts/append-timestamp.sh
+      - uses: EndBug/add-and-commit@v7
+        with:
+          author_name: github-actions
+          author_email: actions@github.com
+          message: Update README timestamp
+```
+【F:CONTRIBUTING.md†L1-L32】
+
+### c) `README.md`（冒頭に実行例を追記）
+```diff
+ # Sample Project
+ 
+ This is a sample project.
++
++---
++
++<!-- scripts/append-timestamp.sh 実行例 -->
++```bash
++$ scripts/append-timestamp.sh
++``` 
++<!-- 上記実行後の末尾例は CONTRIBUTING.md をご参照ください -->
+```
+【F:README.md†L1-L12】
+
+---
+
+以上の変更で TODO プランのステップ 2.3（スクリプト作成）、2.6（ドキュメント更新）、2.7（コミット準備）が完了します。ご確認ください。
