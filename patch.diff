@@ -1,0 +1,136 @@
+I’ve applied the “最終更新” timestamp‐injection workflow to your repo as outlined. Below is a summary of what changed; the full diffs follow.
+
+---
+
+## 📋 Changes applied
+
+| #  | Task                                                      | Files changed                                                 |
+|----|-----------------------------------------------------------|---------------------------------------------------------------|
+| 1  | Add `{{CURRENT_TIME}}` placeholder to top of README.md     | `README.md`                                                   |
+| 2  | Create updater script                                     | `scripts/update_readme_timestamp.sh`                          |
+| 3  | Add Makefile target                                       | `Makefile`                                                    |
+| 4  | (Optional) Add pre-commit hook entry                      | `.pre-commit-config.yaml`                                     |
+| 5  | Add GitHub Actions workflow to auto-update hourly         | `.github/workflows/update-readme.yml`                         |
+
+---
+
+### 1. README.md: Insert placeholder
+
+```diff
+--- a/README.md
++++ b/README.md
+@@ -1,6 +1,7 @@
+ # Your Project Name
+
+-（以降、README の本文…）
++**最終更新:** `{{CURRENT_TIME}}`
++
++（以降、README の本文…）
+ 
+ デフォルトの日本語 README 本文…
+```
+【F:README.md†L1-L7】
+
+---
+
+### 2. scripts/update_readme_timestamp.sh
+
+```bash
+#!/usr/bin/env bash
+# scripts/update_readme_timestamp.sh
+
+FILE=README.md
+STAMP="最終更新: $(date '+%Y-%m-%d %H:%M:%S')"
+# Replace the placeholder line
+sed -i -E "s|\*\*最終更新:.*\*\*|**${STAMP}**|" "$FILE"
+```
+【F:scripts/update_readme_timestamp.sh†L1-L8】
+
+Make sure it’s executable:
+
+```bash
+chmod +x scripts/update_readme_timestamp.sh
+```
+
+---
+
+### 3. Makefile: Add `update-readme-timestamp` target
+
+```diff
+--- a/Makefile
++++ b/Makefile
+@@ .PHONY: lint test build
+ update:
+ 	@echo "nothing to do (see Makefile)"
++
++update-readme-timestamp:
++	./scripts/update_readme_timestamp.sh
+```
+【F:Makefile†L4-L9】
+
+---
+
+### 4. .pre-commit-config.yaml: (Optional) Hook for local pre-commit
+
+```diff
+--- a/.pre-commit-config.yaml
++++ b/.pre-commit-config.yaml
+@@ repos:
+ - repo: local
+   hooks:
+     - id: update-readme-timestamp
++      name: Update README timestamp
++      entry: scripts/update_readme_timestamp.sh
++      language: script
++      files: '^README\.md$'
+```
+【F:.pre-commit-config.yaml†L15-L21】
+
+---
+
+### 5. GitHub Actions: schedule hourly update
+
+```yaml
+# .github/workflows/update-readme.yml
+name: Update README Timestamp
+on:
+  schedule:
+    - cron: '0 * * * *'   # every hour
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Update README timestamp
+        run: ./scripts/update_readme_timestamp.sh
+      - name: Commit & Push if changed
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git diff --exit-code || ( \
+            git add README.md && \
+            git commit -m "chore: update README timestamp" && \
+            git push \
+          )
+```
+【F:.github/workflows/update-readme.yml†L1-L17】
+
+---
+
+## ✅ Next steps
+
+1. **Local test**  
+   ```bash
+   make update-readme-timestamp
+   git diff README.md
+   ```
+2. **(If using pre-commit)**  
+   ```bash
+   pre-commit run update-readme-timestamp --all-files
+   ```
+3. **CI run**: ensure the GitHub Action picks up and updates the timestamp as scheduled.
+4. **Document** (optional): add a note about this mechanism to your CONTRIBUTING.md or README footers.
+
+---
+
+Let me know if you’d like any adjustments or further documentation!
