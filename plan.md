@@ -1,0 +1,152 @@
+以下の分析結果を踏まえ、「README.md への現状時刻追記」機能を実装するための TODO プランをまとめました。
+
+---
+
+# TODO プラン：README.md への時刻追記機能実装
+
+## 1. コマンド実装／設置準備
+
+### 1.1. サンプルコマンドの位置確認
+現状、カスタムコンソールコマンドのテンプレートとして `SampleCommand` が存在しているため、ここに実装を追加します。  
+```php
+// src/Console/Commands/SampleCommand.php
+namespace App\Console\Commands;
+
+use Illuminate\Console\Command;
+
+class SampleCommand extends Command
+{
+    protected $signature = 'sample:run';
+    protected $description = 'サンプルコマンド';
+
+    public function handle()
+    {
+        // ここに README 更新ロジックを実装する
+    }
+}
+```
+【F:src/Console/Commands/SampleCommand.php†L1-L18】
+
+---
+
+### 1.2. コマンドの登録（Laravel プロジェクトの場合）
+Laravel の場合は `app/Console/Kernel.php` などにコマンドが登録されていることを確認／追加します。（未検出時は要追加）
+
+```php
+// app/Console/Kernel.php (例)
+protected $commands = [
+    \App\Console\Commands\SampleCommand::class,
+];
+```
+※Kernel ファイルのパスはプロジェクト構成に合わせて確認してください。
+
+---
+
+## 2. README.md の下準備／フォーマット確認
+
+### 2.1. README.md の現状確認
+README の先頭〜Usage セクションまでの構成を把握します。
+
+```md
+# プロジェクト名
+
+このプロジェクトは〜（略）
+
+## Installation
+
+…
+
+## Usage
+
+…
+```
+【F:README.md†L1-L10】
+
+---
+
+### 2.2. 追記箇所の検討
+- README の末尾に「最終更新時刻」のセクションを追加するイメージ
+- Usage セクション内にコマンド実行例および出力例を追記
+
+---
+
+## 3. 実装イメージ
+
+### 3.1. 現在時刻の取得・整形
+- PHP の `now()` または `\DateTime` 等で現在時刻を取得
+- フォーマット（例：`Y-m-d H:i:s`）を決定
+
+### 3.2. README.md への追記ロジック
+- ファイル末尾に `<p>最終更新：YYYY-MM-DD HH:MM:SS</p>` を追記
+- 二重追記防止のため、既存のタイムスタンプを置換 or 新規追加の制御を検討
+
+```php
+// SampleCommand::handle() 内（実装例イメージ）
+$path = base_path('README.md');
+$now  = now()->format('Y-m-d H:i:s');
+$content = file_get_contents($path);
+
+// 既存タイムスタンプを削除 or 末尾に追加
+$content = preg_replace('/\<p\>最終更新：.*\<\/p\>/', '', $content);
+$content .= "\n\n<p>最終更新：{$now}</p>\n";
+
+file_put_contents($path, $content);
+$this->info('README.md を更新しました。');
+```
+
+---
+
+## 4. テスト追加
+
+### 4.1. テスト環境の確認
+現在、README 更新処理に関するテストは未実装です。
+
+```bash
+$ find tests -type f
+tests/ExampleTest.php
+```
+【F:tests/ExampleTest.php†L1-L30】
+
+---
+
+### 4.2. PHPUnit テストの実装案
+- 一時的にテスト用の README ファイルを用意し、コマンド実行後にファイルの末尾に時刻文字列が追記されることを検証
+- モックやファイル操作を分離し、テストの再現性を担保
+
+```php
+public function testSampleCommandAppendsTimestampToReadme()
+{
+    // 1. 一時ディレクトリ＆READMEをセットアップ
+    // 2. コマンド実行 via Artisan::call('sample:run')
+    // 3. ファイル内容を検証／YYYY-MM-DD HH:MM:SS フォーマットの存在をアサート
+}
+```
+
+---
+
+## 5. ドキュメント更新
+
+- README.md の Usage セクションに「sample:run 実行例」と「最終更新時刻表示例」を追記
+- composer.json / Docker 周りの手順にコマンド実行手順が必要であれば追記
+
+---
+
+## 6. 動作確認・リファクタリング
+
+1. ローカル環境でコマンド実行 → README.md に期待どおり追記されることを確認  
+2. テストを実行 → 全パスがグリーンになることを確認  
+3. 既存コードとの整合性（文字コード、改行コード、エラーハンドリング等）をチェック  
+4. 不要なログ出力や冗長コードがないかリファクタリング
+
+---
+
+## 7. Pull Request 作成
+
+- ブランチ名例：`feature/append-readme-timestamp`
+- 上記実装内容・テスト・ドキュメント更新をまとめる
+- PR テンプレートに「 README.md 更新機能追加 」を明記
+- レビュー依頼
+
+---
+
+以上の TODO を順に実施すれば、「README.md に現状時刻を追記」する機能を安全・確実に追加できます。ご確認ください。
