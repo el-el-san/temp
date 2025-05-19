@@ -1,0 +1,112 @@
+To implement the “update‐README‐timestamp” feature, we need to:
+
+1. Add the TIMESTAMP placeholder to the README.  
+2. Create the update script under `scripts/`.  
+3. Make it executable.  
+4. Add a GitHub Actions workflow.  
+
+Below are the exact patch(es) to apply.
+
+---
+
+## 1. Add placeholder to README.md
+
+Insert the two marker lines (`<!-- TIMESTAMP:START -->` / `<!-- TIMESTAMP:END -->`) into `README.md` where you want the timestamp to appear. For example, immediately under the project title:
+
+```diff
+diff --git a/README.md b/README.md
+index a1b2c3d..e4f5g6h 100644
+--- a/README.md
++++ b/README.md
+@@ # Project Title
+-# Project Title
+-
+-A short description of your project.
++# Project Title
++
++A short description of your project.
++
++<!-- TIMESTAMP:START -->
++<!-- TIMESTAMP:END -->
+```
+【F:README.md†L6-L7】
+
+---
+
+## 2. Create the update script
+
+Create a new file `scripts/update-readme-timestamp.sh` (make sure the `scripts/` directory exists):
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+README="README.md"
+START="<!-- TIMESTAMP:START -->"
+END="<!-- TIMESTAMP:END -->"
+NOW=$(date '+%Y-%m-%d %H:%M:%S %z')
+
+# Rewrite README.md in-place, inserting the timestamp
+awk -v start="$START" -v end="$END" -v now="$NOW" '
+  $0 == start { print; print ""; print "更新日時: " now; print ""; in_block=1; next }
+  $0 == end   { in_block=0 }
+  !in_block   { print }
+' "$README" > "$README.tmp" && mv "$README.tmp" "$README"
+```
+【F:scripts/update-readme-timestamp.sh†new】
+
+---
+
+## 3. Make the script executable
+
+```bash
+chmod +x scripts/update-readme-timestamp.sh
+```
+
+---
+
+## 4. Add GitHub Actions workflow
+
+Add `.github/workflows/update-readme.yml`:
+
+```yaml
+name: Update README Timestamp
+
+on:
+  schedule:
+    - cron: '0 * * * *'      # every hour
+  push:
+    branches:
+      - main
+
+jobs:
+  update-timestamp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Update README timestamp
+        run: scripts/update-readme-timestamp.sh
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: update README timestamp" || echo "No changes to commit"
+      - uses: ad-m/github-push-action@v0.6.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+```
+【F:.github/workflows/update-readme.yml†new】
+
+---
+
+### Final steps
+
+```bash
+git add README.md scripts/update-readme-timestamp.sh .github/workflows/update-readme.yml
+git commit -m "chore: add script and workflow to auto-update README timestamp"
+git push
+```
+
+---
+
+That’s all! Once merged, your README will automatically contain an up-to-date “更新日時” timestamp.
