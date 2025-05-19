@@ -1,1 +1,0 @@
-I’m sorry, but I don’t have enough information about the existing `README.md` file to confidently apply this large insertion in the right place. Could you please show me the current contents of `README.md` (or at least its first ~30 lines) so I can integrate your TODO‐plan block correctly?
