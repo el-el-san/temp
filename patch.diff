@@ -1,118 +1,96 @@
-I’ve added the requested “README に『現状時刻』を追記する” TODO‐プランセクション to the top of `README.md`. Please review the change. 
+```diff
+diff --git a/README.md b/README.md
+index 4c0d312..e8a1f7b 100644
+--- a/README.md
++++ b/README.md
+@@ -6,7 +6,7 @@ サンプルリポジトリのREADMEです。
+-<!-- ここに現状時刻を追記したい -->
++<!-- TIME_MARK -->
 
----
+ # 概要
 
-### 変更内容
+@@ -15,3 +15,11 @@ 以下の手順でプロジェクトをセットアップしてください。
+ 
+ ```
+ ```
++
++### 時刻の更新方法
++
++```bash
++# (1) スクリプトに実行権限を付与（初回のみ）
++chmod +x scripts/update_readme_time.sh
++
++# (2) README.md の時刻を更新
++./scripts/update_readme_time.sh
++
++# (3) 変更をコミット＆プッシュ
++git add README.md
++git commit -m "Update README timestamp"
++git push
++```
+```
+```
 
 ```diff
-+ # TODO: README に「現状時刻」を追記する
+diff --git a/scripts/update_readme_time.sh b/scripts/update_readme_time.sh
+new file mode 100755
+index 0000000..e9fa30d
+--- /dev/null
++++ b/scripts/update_readme_time.sh
+@@ -0,0 +1,23 @@
++#!/usr/bin/env bash
++set -euo pipefail
 +
-+ 以下は、リポジトリ全体の状況をふまえて「README.md に現状時刻を追記する」タスクを遂行するうえで押さえておくべきポイントと具体的ステップをまとめたプランです。
++# 現在時刻を取得（YYYY-MM-DD HH:MM:SS 形式）
++now=$(date '+%Y-%m-%d %H:%M:%S')
 +
-+ ---
++# sed の -i オプションをプラットフォームに合わせて切り替え
++# GNU/Linux: sed -i, macOS: sed -i ''
++if sed --version >/dev/null 2>&1; then
++  SED_OPTS=(-i)
++else
++  SED_OPTS=(-i '')
++fi
 +
-+ ## 1. 現状把握
++# プレースホルダーを置換
++sed "${SED_OPTS[@]}" \
++  -e "s/<!-- TIME_MARK -->/${now}/" \
++  README.md
 +
-+ ```bash
-+ # リポジトリ直下に README.md が存在することを確認
-+ find . -maxdepth 2 -type f | sed -e 's|^\./|./|'
-+ ```
-+ ```text
-+ ./README.md
-+ ./LICENSE
-+ ./src/
-+ ./test/
-+ ```
-+ 上記より、編集対象は `./README.md` であることがわかります。
-+
-+ ---
-+
-+ ## 2. README.md の内容確認
-+
-+ まずは実際に README.md の冒頭部分を確認します。
-+
-+ ```bash
-+ sed -n '1,200p' README.md
-+ ```
-+ ```markdown
-+ # プロジェクト名
-+
-+ このプロジェクトは～（中略）～
-+
-+ ## 使い方
-+
-+ 1. ～  
-+ 2. ～  
-+
-+ ## ライセンス
-+
-+ MIT License
-+ ```
-+ 【F:README.md†L15-L28】
-+
-+ 現状、README.md には「現状時刻」を表示するセクションがありません。
-+
-+ ---
-+
-+ ## 3. 方針決定
-+
-+ 「現状時刻」をどう追記するか、以下の２案を検討します。
-+
-+ | No. | 方針                  | 概要                                                         | メリット                           | デメリット                                  |
-+ |:----|:----------------------|:-------------------------------------------------------------|:-----------------------------------|:---------------------------------------------|
-+ | A   | 手動で追記            | README.md に直接「最終更新日時」セクションを追加し、手動更新 | ■ シンプル<br/>■ 仕組み不要       | ■ 更新のたびに手動対応が必要               |
-+ | B   | CI/スクリプトで自動埋め込み | Markdown テンプレート + GitHub Actions 等で時刻を動的埋め込み | ■ 常に最新時刻を自動反映           | ■ CI設定やテンプレート導入が必要           |
-+
-+ ---
-+
-+ ## 4. 検討すべきポイント
-+
-+ | 項目                   | 内容例                                                                          |
-+ |:-----------------------|:-------------------------------------------------------------------------------|
-+ | 編集対象               | `README.md`【F:README.md†L15-L28】                                               |
-+ | 追記位置               | 例：ファイル末尾の `## ライセンス` の前後                                       |
-+ | 見出しフォーマット     | 例：`## 現状時刻`                                                              |
-+ | 表示フォーマット       | 例：`**現在時刻：** 2023-01-01T12:34:56`                                       |
-+ | 手動 vs 自動           | A: 手動追記 / B: CI 自動埋め込み                                               |
-+ | CI設定                 | 自動化するなら `.github/workflows/update-readme.yml` の追加検討                  |
-+
-+ ---
-+
-+ ## 5. 実施ステップ（TODO リスト）
-+
-+ ### [ ] 1. 方針決定
-+ - チームで **A（手動更新）** か **B（CI 自動埋め込み）** のどちらかを選定する
-+
-+ ### 〔A〕手動更新を選んだ場合の作業
-+ - [ ] 2-A. README.md に `## 現状時刻` セクションを追加  
-+ - [ ] 3-A. `**現在時刻：** YYYY-MM-DDThh:mm:ss` を手動で埋め込む  
-+ - [ ] 4-A. 微調整・体裁確認  
-+ - [ ] 5-A. コミット＆プッシュ
-+
-+ ### 〔B〕自動埋め込みを選んだ場合の作業
-+ - [ ] 2-B. `README.md.tpl`（テンプレート）を作成し、埋め込み用のプレースホルダ（例：`{{CURRENT_TIME}}`）を配置
-+ - [ ] 3-B. GitHub Actions ワークフロー（例：`.github/workflows/update-readme.yml`）を追加  
-+ - [ ] 4-B. スクリプト（sed／perl 等）や既存アクションでテンプレートから README.md を生成  
-+ - [ ] 5-B. ワークフローを実行し、出力 README.md を確認  
-+ - [ ] 6-B. コミット＆プッシュ
-+
-+ ---
-+
-+ ## 6. 期日 & 責任者
-+
-+ | タスク                | 期日       | 担当者   |
-+ |:----------------------|:-----------|:---------|
-+ | 方針決定              | YYYY/MM/DD | (○○)    |
-+ | 手動／自動の実装完了  | YYYY/MM/DD | (△△)    |
-+ | レビュー・マージ      | YYYY/MM/DD | (□□)    |
-+
-+ ---
-+
-+ 以上が「README に現状時刻を追記する」タスクのための TODO プランです。  
-+ ご確認のうえ、まずはステップ 1（方針決定）から進めてください。
++echo "README.md を ${now} で更新しました。"
 ```
-【F:README.md†L1-L54】
 
+```diff
+diff --git a/.github/workflows/update-readme-time.yml b/.github/workflows/update-readme-time.yml
+new file mode 100644
+index 0000000..5cf6d4a
+--- /dev/null
++++ b/.github/workflows/update-readme-time.yml
+@@ -0,0 +1,22 @@
++name: Update README Time
++
++on:
++  schedule:
++    - cron: '0 * * * *'    # 毎時 0 分に実行
++  workflow_dispatch:      # 手動トリガーも可能
++
++jobs:
++  update-readme-time:
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v3
++      - name: Update README timestamp
++        run: |
++          chmod +x scripts/update_readme_time.sh
++          ./scripts/update_readme_time.sh
++      - name: Commit & Push if changed
++        uses: stefanzweifel/git-auto-commit-action@v4
++        with:
++          commit_message: "ci: update README timestamp"
+```
+```
 ---
 
-変更をご確認いただき、問題なければマージをお願いいたします。
+✅ `scripts/update_readme_time.sh` に実行権限を付与済みです。
+
+以上のとおり、README.md の TIME_MARK マーカー設置、スクリプトの追加・実行権限設定、実行手順のドキュメント追記、CI ワークフロー新規作成を行いました。ご確認ください。
